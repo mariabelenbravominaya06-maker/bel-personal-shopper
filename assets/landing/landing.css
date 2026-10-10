@@ -592,3 +592,16 @@ ul,ol{ margin:0; padding:0; list-style:none; }
   .ticker{ -webkit-mask-image:none; mask-image:none; }
   .progress{ display:none; }
 }
+
+/* ---------- Ayuda para navegadores internos (TikTok, Instagram, Facebook) ---------- */
+.iab-bar{ position:sticky; top:var(--header-h); z-index:95; display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; padding:12px var(--gutter); background:var(--yellow-300); color:var(--ink); font-size:.9rem; line-height:1.4; border-bottom:1px solid var(--gold-300); }
+.iab-bar[hidden]{ display:none; }
+.iab-bar p{ flex:1 1 240px; }
+.iab-copy{ min-height:44px; padding:8px 16px; border-radius:999px; border:1.5px solid var(--gold-700); background:#fff; color:var(--gold-700); font:600 .9rem var(--body); cursor:pointer; }
+.iab-sheet{ width:min(92vw, 440px); border:0; border-radius:var(--r-lg); padding:26px 22px; box-shadow:var(--shadow-lg); color:var(--ink); background:var(--surface); }
+.iab-sheet::backdrop{ background:rgba(39,22,32,.55); }
+.iab-sheet h2{ font-size:1.4rem; margin-bottom:10px; }
+.iab-sheet ol{ margin:14px 0 18px; padding-left:20px; display:grid; gap:10px; list-style:decimal; }
+.iab-sheet form{ display:flex; flex-direction:column; gap:10px; }
+.iab-sheet .btn-block + .btn-block{ margin-top:0; }
+.iab-sheet .iab-copy.btn{ border:0; min-height:50px; padding:13px 24px; font-size:1rem; color:#fff; background:var(--wa); }
