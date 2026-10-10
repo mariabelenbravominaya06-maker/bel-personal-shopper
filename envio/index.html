@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#FADCE8">
+<title>Datos de envío · Bel Personal Shopper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/envios.css">
+<style>
+  body{min-height:100vh;display:flex;justify-content:center}
+  .app{width:100%;max-width:520px;display:flex;flex-direction:column;min-height:100vh}
+  .f-head{padding:calc(22px + env(safe-area-inset-top,0px)) 20px 14px;background:linear-gradient(180deg,var(--pink-100),var(--bg));display:flex;flex-direction:column;gap:6px}
+  .f-head .logo{font-family:var(--display);color:var(--pink-700);font-weight:600;text-decoration:none}
+  .f-head p{color:var(--muted);font-size:.95rem}
+  .progress{display:flex;gap:6px;margin-top:6px}
+  .progress span{flex:1;height:5px;border-radius:99px;background:var(--pink-100)}
+  .progress span.on{background:var(--pink-600)}
+  .f-body{padding:16px 20px calc(28px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px;flex:1}
+  .choice{display:flex;flex-direction:column;gap:10px}
+  .choice button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:16px;padding:16px;cursor:pointer}
+  .choice button b{font-size:1.02rem}
+  .choice button span{color:var(--muted);font-size:.9rem}
+  .choice button[aria-pressed="true"]{border-color:var(--pink-600);background:var(--pink-50)}
+  .actions{display:flex;gap:10px;margin-top:auto;padding-top:8px}
+  .actions .btn{flex:1}
+  .done{align-items:center;text-align:center;justify-content:center;gap:14px}
+  .done .ref{font-family:var(--display);font-size:2.2rem;color:var(--pink-700);user-select:all}
+  .badge-ok{width:64px;height:64px;border-radius:50%;background:var(--ok-bg);color:var(--ok);display:grid;place-items:center;font-size:1.8rem}
+  .summary{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.92rem;display:flex;flex-direction:column;gap:4px;overflow-wrap:anywhere}
+  .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+</style>
+</head>
+<body>
+<main class="app" id="app" aria-live="polite"></main>
+<noscript><p style="padding:20px">Para completar tus datos necesitas activar JavaScript en tu navegador.</p></noscript>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="../assets/config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
