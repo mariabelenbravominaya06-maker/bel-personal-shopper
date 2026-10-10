@@ -104,6 +104,49 @@
   window.addEventListener('resize', onScroll, { passive: true });
   onScroll();
 
+
+  /* ---------- Navegadores internos (TikTok, Instagram, Facebook) ----------
+     Esos navegadores no abren chat.whatsapp.com. Se avisa, se intenta abrir WhatsApp
+     directo y, si no se logra, se muestra una ayuda con botón para copiar el enlace. */
+  var ua = navigator.userAgent || '';
+  var iab = /TikTok|musical_ly|BytedanceWebview|Bytedance|trill/i.test(ua) ? 'TikTok'
+          : /Instagram/i.test(ua) ? 'Instagram'
+          : /FBAN|FBAV|FB_IAB|FBIOS/i.test(ua) ? 'Facebook' : '';
+  var iabBar = document.getElementById('iab-bar');
+  var iabSheet = document.getElementById('iab-sheet');
+  if (iab && iabBar) {
+    ['iab-name', 'iab-name2'].forEach(function (id) { var el = document.getElementById(id); if (el) el.textContent = iab; });
+    iabBar.hidden = false;
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest('a[data-track="whatsapp_group"]');
+      if (!a || !iabSheet || typeof iabSheet.showModal !== 'function') return;
+      e.preventDefault();
+      var m = a.href.match(/chat\.whatsapp\.com\/([A-Za-z0-9]+)/);
+      var left = false;
+      var onHide = function () { if (document.hidden) left = true; };
+      document.addEventListener('visibilitychange', onHide);
+      if (m) { window.location.href = 'whatsapp://chat?code=' + m[1]; }
+      setTimeout(function () {
+        document.removeEventListener('visibilitychange', onHide);
+        if (!left && !iabSheet.open) iabSheet.showModal();
+      }, 900);
+    }, true);
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-copy]');
+    if (!b) return;
+    var text = b.getAttribute('data-copy');
+    var label = b.textContent;
+    var done = function () { b.textContent = '¡Enlace copiado!'; setTimeout(function () { b.textContent = label; }, 2200); };
+    var fallback = function () {
+      var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (err) { window.prompt('Copia este enlace:', text); }
+      document.body.removeChild(ta);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+  });
+
   /* ---------- Medición ----------
      Cada botón importante lleva data-track (whatsapp_group, whatsapp_private, tiktok, admin, ver_tiendas)
      y data-track-location (hero, menu, precios...). Los eventos se envían a dataLayer, gtag o

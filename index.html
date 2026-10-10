@@ -107,6 +107,11 @@
   </div>
 </header>
 
+<div class="iab-bar" id="iab-bar" hidden>
+  <p><strong>Estás dentro de <span id="iab-name">TikTok</span>.</strong> Para unirte al grupo, abre esta página en tu navegador: toca <b>⋯</b> y elige <b>“Abrir en el navegador”</b>.</p>
+  <button type="button" class="iab-copy" data-copy="https://belpersonalshopper.com/">Copiar enlace de la página</button>
+</div>
+
 <main id="contenido">
 
   <!-- PORTADA -->
@@ -582,6 +587,20 @@
   <svg class="ic" aria-hidden="true"><use href="#i-wa"/></svg><span>Unirme al grupo</span>
 </a>
 
+
+<!-- Ayuda para navegadores internos (TikTok, Instagram, Facebook) que bloquean el enlace de WhatsApp -->
+<dialog class="iab-sheet" id="iab-sheet" aria-labelledby="iab-title">
+  <form method="dialog">
+    <h2 id="iab-title">Abre el grupo desde tu navegador</h2>
+    <p><span id="iab-name2">TikTok</span> no deja abrir WhatsApp desde su navegador interno. Tienes dos formas fáciles:</p>
+    <ol>
+      <li>Toca <b>⋯</b> arriba a la derecha y elige <b>“Abrir en el navegador”</b> (Safari o Chrome). Luego toca otra vez el botón del grupo.</li>
+      <li>O copia el enlace del grupo, ábrelo en WhatsApp o pégalo en tu navegador.</li>
+    </ol>
+    <button type="button" class="btn btn-wa btn-block iab-copy" data-copy="https://chat.whatsapp.com/CBB9019T57D7j52NtN0HKc?s=cl&amp;p=i&amp;ilr=4&amp;iam=0" data-track="copy_group_link" data-track-location="ayuda_navegador">Copiar enlace del grupo</button>
+    <button class="btn btn-outline btn-block" value="close">Cerrar</button>
+  </form>
+</dialog>
 <script src="assets/landing/landing.js" defer></script>
 </body>
 </html>
