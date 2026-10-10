@@ -671,10 +671,14 @@
 
       '<section class="sec"><h3>Datos de envío</h3>' + envio + "</section>" +
       '<section class="sec"><h3>Historial de cambios</h3><div class="hist" id="hist">' + htmlHistorial() + "</div></section>" +
+      '<section class="sec"><h3>Eliminar pedido</h3><p class="hint">Para pedidos falsos o de prueba. Se borran también sus datos de envío, productos e historial, y no se puede deshacer. ' +
+      'Si prefieres guardar el registro, usa el estado CANCELADO.</p>' +
+      '<div class="btns"><button class="btn btn-sm btn-ghost peligro" id="b-eliminar" type="button">🗑 Eliminar pedido</button></div></section>' +
       "</div></aside>";
 
     document.getElementById("ov").onclick = cerrarPanel;
     document.getElementById("b-cerrar").onclick = cerrarPanel;
+    document.getElementById("b-eliminar").onclick = function () { eliminarPedido(p, this); };
     document.getElementById("b-copiar-enlace").onclick = function () { copiar(ENLACE); };
     document.getElementById("b-estado").onclick = function () { guardarEstado(p); };
     document.getElementById("b-valores").onclick = function () { guardarValores(p, conLista); };
@@ -695,6 +699,24 @@
     var fe = document.getElementById("f-envio");
     if (fe) fe.addEventListener("submit", function (ev) { ev.preventDefault(); guardarEnvio(p, e); });
     document.getElementById("panel").addEventListener("keydown", function (ev) { if (ev.key === "Escape") cerrarPanel(); });
+  }
+
+  // Borra el pedido (lo demás se borra en cascada). Pide un segundo toque sin repintar el panel.
+  function eliminarPedido(p, btn) {
+    if (btn.getAttribute("data-seguro") !== "1") {
+      btn.setAttribute("data-seguro", "1");
+      btn.textContent = "¿Seguro? Toca otra vez para eliminar " + p.codigo;
+      return;
+    }
+    btn.disabled = true;
+    sb.from("pedidos").delete().eq("id", p.id).select("id").then(function (r) {
+      if (r.error || !r.data || !r.data.length) { btn.disabled = false; toast(r.error ? mensajeError(r.error) : "No se pudo eliminar el pedido."); return; }
+      // Si el cliente no tiene más pedidos, también se borra (la base lo impide si tiene otros).
+      if (p.cliente_id) sb.from("clientes").delete().eq("id", p.cliente_id).then(function () {});
+      st.pedidos = st.pedidos.filter(function (x) { return x.id !== p.id; });
+      cerrarPanel(); pintarResumen(); pintarLista();
+      toast("Pedido " + p.codigo + " eliminado");
+    });
   }
 
   function leerValores() {
