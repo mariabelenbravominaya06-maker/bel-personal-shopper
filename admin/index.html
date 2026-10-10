@@ -180,6 +180,34 @@
   .pie .corona{max-width:280px;width:100%;margin:0 auto}
   .pie .lema{font-size:.64rem}
 
+  /* Etiqueta de envío: blanco y negro, apta para impresoras térmicas */
+  #etiquetas-print{position:fixed;left:-10000px;top:0;visibility:hidden;pointer-events:none}
+  .et{box-sizing:border-box;overflow:hidden;background:#fff;color:#000;font-family:"Work Sans",Arial,sans-serif;line-height:1.25;display:flex;flex-direction:column;gap:.35em;transform-origin:top left;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .et-top{display:flex;align-items:center;gap:.5em;border-bottom:.14em solid #000;padding-bottom:.4em}
+  .et-top img{width:2.4em;height:2.4em;border-radius:.4em;filter:grayscale(1) contrast(1.4)}
+  .et-marca{display:flex;flex-direction:column;min-width:0;flex:1}
+  .et-marca b{font-size:.85em}
+  .et-marca small{font-size:.65em}
+  .et-cod{font-size:1.25em;border:.12em solid #000;border-radius:.3em;padding:.05em .35em;white-space:nowrap}
+  .et-k{font-size:.7em;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  .et-nom{font-size:1.45em;font-weight:700;line-height:1.1;overflow-wrap:anywhere;margin-top:-.2em}
+  .et-l{font-size:.9em;overflow-wrap:anywhere}
+  .et-l span{font-weight:700}
+  .et-ins{font-style:italic}
+  .et-dest{border:.14em solid #000;border-radius:.35em;padding:.3em .5em;margin:.15em 0}
+  .et-ciudad{font-size:1.6em;font-weight:700;line-height:1.1;overflow-wrap:anywhere}
+  .et-prov{font-size:.9em}
+  .et-dir{font-size:1em;font-weight:600;overflow-wrap:anywhere}
+  .et-pie{margin-top:auto;border-top:.1em dashed #000;padding-top:.3em;display:flex;justify-content:space-between;gap:.5em;font-size:.75em;font-weight:700}
+  .et-vista{margin:0 auto;border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:var(--shadow);background:#fff}
+  @media print{
+    html,body{background:#fff!important;overflow:visible!important}
+    body>*:not(#etiquetas-print){display:none!important}
+    #etiquetas-print{position:static;visibility:visible;left:auto}
+    .et{break-after:page;page-break-after:always}
+    .et:last-child{break-after:auto;page-break-after:auto}
+  }
+
   @media (max-width:1100px){
     .filters{grid-template-columns:2fr 1fr 1fr 1fr}
     .filters #f-desde,.filters #f-hasta{display:none}

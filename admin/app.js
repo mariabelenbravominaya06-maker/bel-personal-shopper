@@ -632,7 +632,8 @@
         '<button class="btn btn-sm btn-primary" type="submit">Guardar datos de envío</button></div></form>';
     } else {
       envio = (tieneDir ? '<div class="addr">' + esc(direccionTexto(e)) + "</div>" : '<p class="callout">El cliente todavía no ha llenado sus datos de envío.</p>') +
-        '<div class="btns">' + (tieneDir ? '<button class="btn btn-sm btn-ghost" id="b-copiar-dir" type="button">Copiar dirección completa</button>' : "") +
+        '<div class="btns">' + (tieneDir ? '<button class="btn btn-sm btn-primary" id="b-etiqueta" type="button">🏷 Imprimir etiqueta</button>' +
+          '<button class="btn btn-sm btn-ghost" id="b-copiar-dir" type="button">Copiar dirección completa</button>' : "") +
         '<button class="btn btn-sm btn-ghost" id="b-editar-env" type="button">Editar datos</button></div>' +
         (e.enviado_en ? "<small style=\"color:var(--muted)\">Enviado por el cliente el " + esc(fechaHora(e.enviado_en)) + "</small>" : "");
     }
@@ -670,10 +671,14 @@
 
       '<section class="sec"><h3>Datos de envío</h3>' + envio + "</section>" +
       '<section class="sec"><h3>Historial de cambios</h3><div class="hist" id="hist">' + htmlHistorial() + "</div></section>" +
+      '<section class="sec"><h3>Eliminar pedido</h3><p class="hint">Para pedidos falsos o de prueba. Se borran también sus datos de envío, productos e historial, y no se puede deshacer. ' +
+      'Si prefieres guardar el registro, usa el estado CANCELADO.</p>' +
+      '<div class="btns"><button class="btn btn-sm btn-ghost peligro" id="b-eliminar" type="button">🗑 Eliminar pedido</button></div></section>' +
       "</div></aside>";
 
     document.getElementById("ov").onclick = cerrarPanel;
     document.getElementById("b-cerrar").onclick = cerrarPanel;
+    document.getElementById("b-eliminar").onclick = function () { eliminarPedido(p, this); };
     document.getElementById("b-copiar-enlace").onclick = function () { copiar(ENLACE); };
     document.getElementById("b-estado").onclick = function () { guardarEstado(p); };
     document.getElementById("b-valores").onclick = function () { guardarValores(p, conLista); };
@@ -685,6 +690,8 @@
     });
     var bc = document.getElementById("b-copiar-dir");
     if (bc) bc.onclick = function () { copiar(direccionTexto(e)); };
+    var bt = document.getElementById("b-etiqueta");
+    if (bt) bt.onclick = function () { abrirEtiquetas([p], 0); };
     var be = document.getElementById("b-editar-env");
     if (be) be.onclick = function () { st.editandoEnvio = true; pintarPanel(); };
     var bx = document.getElementById("b-env-cancel");
@@ -692,6 +699,24 @@
     var fe = document.getElementById("f-envio");
     if (fe) fe.addEventListener("submit", function (ev) { ev.preventDefault(); guardarEnvio(p, e); });
     document.getElementById("panel").addEventListener("keydown", function (ev) { if (ev.key === "Escape") cerrarPanel(); });
+  }
+
+  // Borra el pedido (lo demás se borra en cascada). Pide un segundo toque sin repintar el panel.
+  function eliminarPedido(p, btn) {
+    if (btn.getAttribute("data-seguro") !== "1") {
+      btn.setAttribute("data-seguro", "1");
+      btn.textContent = "¿Seguro? Toca otra vez para eliminar " + p.codigo;
+      return;
+    }
+    btn.disabled = true;
+    sb.from("pedidos").delete().eq("id", p.id).select("id").then(function (r) {
+      if (r.error || !r.data || !r.data.length) { btn.disabled = false; toast(r.error ? mensajeError(r.error) : "No se pudo eliminar el pedido."); return; }
+      // Si el cliente no tiene más pedidos, también se borra (la base lo impide si tiene otros).
+      if (p.cliente_id) sb.from("clientes").delete().eq("id", p.cliente_id).then(function () {});
+      st.pedidos = st.pedidos.filter(function (x) { return x.id !== p.id; });
+      cerrarPanel(); pintarResumen(); pintarLista();
+      toast("Pedido " + p.codigo + " eliminado");
+    });
   }
 
   function leerValores() {
@@ -755,6 +780,90 @@
       });
     });
   }
+
+  // ---------- Etiquetas de envío (impresión) ----------
+  // Solo datos del destinatario: nunca valores de dinero.
+  var TAMANOS = {
+    "4x6": { nombre: "4×6 pulgadas (10×15 cm)", w: "4in", h: "6in", pad: "0.2in", base: 17 },
+    "80": { nombre: "Rollo térmico 80 mm", w: "80mm", h: "120mm", pad: "4mm", base: 13 },
+    "62": { nombre: "Brother 62 mm (62×100)", w: "62mm", h: "100mm", pad: "3mm", base: 11 },
+    "58": { nombre: "Rollo térmico 58 mm", w: "58mm", h: "90mm", pad: "3mm", base: 10 }
+  };
+  function tamanoEtiqueta() { var t = leerPref("bel_etiqueta", "4x6"); return TAMANOS[t] ? t : "4x6"; }
+
+  function htmlEtiqueta(p) {
+    var e = envioDe(p) || {}, sal = salidaDe(p);
+    var linea = [e.calle_principal, e.numero ? "N° " + e.numero : "", e.calle_secundaria ? "y " + e.calle_secundaria : ""].filter(Boolean).join(" ");
+    var lugar = [e.provincia, e.pais && !/^ecuador$/i.test(e.pais) ? e.pais : ""].filter(Boolean).join(", ");
+    var fila = function (k, v, cls) { return v ? '<div class="et-l' + (cls ? " " + cls : "") + '"><span>' + esc(k) + "</span> " + esc(v) + "</div>" : ""; };
+    var alterno = [e.contacto_alt_nombre, e.contacto_alt_telefono].filter(Boolean).join(" · ");
+    return '<div class="et"><div class="et-top"><img src="' + LOGO + '" alt=""><div class="et-marca"><b>Bel Personal Shopper</b><small>Tu estilo, sin fronteras</small></div>' +
+      '<b class="et-cod">' + esc(p.codigo) + "</b></div>" +
+      '<div class="et-k">Para</div><div class="et-nom">' + esc(e.nombre) + "</div>" +
+      fila("Cédula/Pasaporte:", e.documento) + fila("WhatsApp:", e.whatsapp) +
+      '<div class="et-dest"><div class="et-ciudad">' + esc((e.ciudad || "").toUpperCase()) + "</div>" +
+      (lugar || e.codigo_postal ? '<div class="et-prov">' + esc(lugar) + (e.codigo_postal ? (lugar ? " · " : "") + "CP " + esc(e.codigo_postal) : "") + "</div>" : "") + "</div>" +
+      (linea ? '<div class="et-dir">' + esc(linea) + "</div>" : "") +
+      fila("Referencia:", e.referencia) + fila("Contacto alterno:", alterno) + fila("Entrega:", e.instrucciones, "et-ins") +
+      '<div class="et-pie"><span>' + esc(p.codigo) + "</span>" + (sal ? "<span>Salida " + esc(sal) + "</span>" : "") + "</div></div>";
+  }
+
+  // Ajusta la letra de cada etiqueta para que todo quepa en una sola hoja.
+  function ajustarEtiquetas(cont, t) {
+    cont.querySelectorAll(".et").forEach(function (el) {
+      el.style.width = t.w; el.style.height = t.h; el.style.padding = t.pad;
+      var fs = t.base;
+      el.style.fontSize = fs + "px";
+      while (el.scrollHeight > el.clientHeight + 1 && fs > 6) { fs -= 0.5; el.style.fontSize = fs + "px"; }
+    });
+  }
+
+  function prepararImpresion(pedidos, clave) {
+    var t = TAMANOS[clave];
+    var cont = document.getElementById("etiquetas-print");
+    if (!cont) { cont = document.createElement("div"); cont.id = "etiquetas-print"; document.body.appendChild(cont); }
+    cont.innerHTML = pedidos.map(htmlEtiqueta).join("");
+    var pg = document.getElementById("estilo-pagina");
+    if (!pg) { pg = document.createElement("style"); pg.id = "estilo-pagina"; document.head.appendChild(pg); }
+    pg.textContent = "@page{size:" + t.w + " " + t.h + ";margin:0}";
+    ajustarEtiquetas(cont, t);
+    return cont;
+  }
+
+  function abrirEtiquetas(pedidos, sinDatos) {
+    var d = document.getElementById("d-etiqueta");
+    if (!d) { d = document.createElement("dialog"); d.id = "d-etiqueta"; document.body.appendChild(d); }
+    var clave = tamanoEtiqueta(), varias = pedidos.length > 1;
+    d.innerHTML = '<form method="dialog" novalidate><h3>' + (varias ? "Imprimir " + pedidos.length + " etiquetas" : "Imprimir etiqueta " + esc(pedidos[0].codigo)) + "</h3>" +
+      '<div class="field"><label for="et-tam">Tamaño de la etiqueta</label><select id="et-tam">' +
+      Object.keys(TAMANOS).map(function (k) { return '<option value="' + k + '"' + (k === clave ? " selected" : "") + ">" + esc(TAMANOS[k].nombre) + "</option>"; }).join("") +
+      '</select></div><div class="et-vista" id="et-vista"></div>' +
+      (sinDatos ? '<p class="callout">' + sinDatos + (sinDatos === 1 ? " pedido no tiene" : " pedidos no tienen") + " datos de envío y no se imprime" + (sinDatos === 1 ? "" : "n") + ".</p>" : "") +
+      '<p class="hint">Se abre la ventana de impresión: elige tu impresora y el mismo tamaño de papel, con escala al 100 % y sin márgenes.' +
+      (varias ? " Sale una etiqueta por hoja." : "") + "</p>" +
+      '<div class="btns"><button class="btn btn-sm btn-ghost" value="cancel" type="submit" formnovalidate>Cancelar</button>' +
+      '<button class="btn btn-sm btn-primary" id="et-ok" type="button">🖨 Imprimir</button></div></form>';
+    var vista = function () {
+      clave = document.getElementById("et-tam").value;
+      var cont = prepararImpresion(pedidos, clave), primera = cont.querySelector(".et");
+      var copia = primera.cloneNode(true), ancho = primera.offsetWidth, alto = primera.offsetHeight;
+      var esc2 = Math.min(1, 260 / ancho, 340 / alto);
+      copia.style.transform = "scale(" + esc2 + ")";
+      var caja = document.getElementById("et-vista");
+      caja.innerHTML = ""; caja.style.width = Math.round(ancho * esc2) + "px"; caja.style.height = Math.round(alto * esc2) + "px";
+      caja.appendChild(copia);
+    };
+    document.getElementById("et-tam").onchange = function () { guardarPref("bel_etiqueta", this.value); vista(); };
+    document.getElementById("et-ok").onclick = function () {
+      prepararImpresion(pedidos, clave);
+      d.close();
+      setTimeout(function () { window.print(); }, 60);
+    };
+    d.showModal();
+    vista();
+  }
+
+  function tieneDatosEnvio(p) { var e = envioDe(p); return !!(e && e.nombre && e.calle_principal); }
 
   // ---------- Productos del pedido (precios sin tax) ----------
   function productosDe(p) {
@@ -988,6 +1097,7 @@
         '<div class="r">' + pillEstado(p) + "<small>" + esc(libras(p.libras)) + "</small>" +
         '<span class="' + (num(p.saldo) > 0 ? "debe" : "pagado") + '">' + (num(p.saldo) > 0 ? "Debe " + usd(p.saldo) : "Pagado") + "</span></div>" +
         '<div class="btns">' + (wa ? '<a class="btn btn-sm btn-wa" target="_blank" rel="noopener" data-avisar="' + esc(p.id) + '" href="https://wa.me/' + esc(wa) + "?text=" + encodeURIComponent(mensajeSalida(p, f)) + '">Avisar por WhatsApp</a>' : "") +
+        (tieneDatosEnvio(p) ? '<button class="btn btn-sm btn-ghost" type="button" data-etiqueta="' + esc(p.id) + '">🏷 Etiqueta</button>' : '<small class="nada">Sin datos de envío</small>') +
         (f.estado === "ABIERTA" ? '<button class="btn btn-sm btn-ghost" type="button" data-sacar="' + esc(p.id) + '">' + conf("sacar-" + p.id, "Quitar", "¿Seguro? Toca otra vez") + "</button>" : "") +
         "</div></div>";
     }).join("");
@@ -1011,7 +1121,8 @@
       '<div class="kpis"><div><span>Pedidos</span><b>' + r.activos.length + "</b></div><div><span>Libras</span><b>" + esc(libras(r.libras)) + "</b></div>" +
       "<div><span>Total</span><b>" + usd(r.total) + "</b></div><div><span>Pagado</span><b>" + usd(r.pagado) + '</b></div><div class="y"><span>Por cobrar</span><b>' + usd(r.saldo) + "</b></div></div>" +
       (r.conSaldo.length ? '<p class="callout">⚠ Con saldo pendiente: ' + r.conSaldo.map(function (p) { return esc(p.codigo) + " (" + usd(p.saldo) + ")"; }).join(", ") + "</p>" : "") +
-      '<div class="btns">' + acciones + '<button class="btn btn-sm btn-ghost" id="b-excel-fecha" type="button">Excel de esta fecha</button></div></section>' +
+      '<div class="btns">' + acciones + '<button class="btn btn-sm btn-ghost" id="b-excel-fecha" type="button">Excel de esta fecha</button>' +
+      (r.activos.length ? '<button class="btn btn-sm btn-primary" id="b-etiquetas-fecha" type="button">🏷 Imprimir todas las etiquetas</button>' : "") + "</div></section>" +
       '<section class="sec"><h3>Pedidos en este envío (' + r.pedidos.length + ")</h3>" +
       (filas ? '<div class="fps">' + filas + "</div>" : '<p class="hint">Todavía no hay pedidos en esta fecha.</p>') + "</section>" +
       agregar +
@@ -1023,6 +1134,15 @@
     document.getElementById("b-cerrar").onclick = cerrarPanel;
     document.getElementById("panel").addEventListener("keydown", function (ev) { if (ev.key === "Escape") cerrarPanel(); });
     document.getElementById("b-excel-fecha").onclick = function () { descargarExcelFecha(f); };
+    var bef = document.getElementById("b-etiquetas-fecha");
+    if (bef) bef.onclick = function () {
+      var con = r.activos.filter(tieneDatosEnvio);
+      if (!con.length) { toast("Ningún pedido de esta fecha tiene datos de envío."); return; }
+      abrirEtiquetas(con, r.activos.length - con.length);
+    };
+    document.querySelectorAll("[data-etiqueta]").forEach(function (b) {
+      b.onclick = function () { var x = buscarPedido(b.getAttribute("data-etiqueta")); if (x) abrirEtiquetas([x], 0); };
+    });
     document.querySelectorAll("[data-ver]").forEach(function (b) { b.onclick = function () { abrirPanel(b.getAttribute("data-ver")); }; });
     document.querySelectorAll("[data-marcar]").forEach(function (b) {
       b.onclick = function () {
