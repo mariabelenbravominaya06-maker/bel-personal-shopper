@@ -36,15 +36,22 @@
 
   const st = {
     paso: "tipo", tipo: null, datos: { whatsapp: "+593 " }, errores: {}, aviso: "",
-    encontrado: null, usarDir: true, enviando: false, codigo: null, clave: nuevaClave(),
+    encontrado: null, usarDir: true, enviando: false, codigo: null, clave: nuevaClave(), salida: null,
   };
+
+  // Próxima fecha de envío que la administradora dejó abierta (solo la fecha).
+  function textoSalida(iso) {
+    const d = new Date(iso + "T12:00:00");
+    const t = d.toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
 
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const flujo = () => st.tipo === "registrado" ? ["tipo", "buscar", "direccion", "confirmar"] : ["tipo", "personal", "direccion", "confirmar"];
 
   function cabecera(titulo, sub) {
     const i = flujo().indexOf(st.paso);
-    return `<header class="f-head"><a class="logo" href="../">Bel Personal Shopper</a><h1 style="font-size:1.5rem">${titulo}</h1><p>${sub}</p>
+    return `<header class="f-head"><a class="marca" href="../"><img src="../assets/logo-bel.png" alt="" width="40" height="40"><span><b>Bel Personal Shopper</b><small>Tu estilo, sin fronteras</small></span></a><h1 style="font-size:1.5rem">${titulo}</h1><p>${sub}</p>
       <div class="progress" aria-label="Paso ${i + 1} de 4">${[0, 1, 2, 3].map((n) => `<span class="${n <= i ? "on" : ""}"></span>`).join("")}</div></header>`;
   }
 
@@ -64,7 +71,7 @@
 
   function vista() {
     if (!configurado) {
-      return `${"<header class='f-head'><span class='logo'>Bel Personal Shopper</span><h1 style='font-size:1.5rem'>Formulario no disponible</h1></header>"}
+      return `${"<header class='f-head'><span class='marca'><img src='../assets/logo-bel.png' alt='' width='40' height='40'><span><b>Bel Personal Shopper</b><small>Tu estilo, sin fronteras</small></span></span><h1 style='font-size:1.5rem'>Formulario no disponible</h1></header>"}
         <div class="f-body"><p class="alert">El formulario todavía no está conectado. Escríbenos por WhatsApp para enviarnos tus datos.</p></div>`;
     }
     const d = st.datos;
@@ -75,6 +82,7 @@
             <button type="button" data-tipo="nuevo" aria-pressed="${st.tipo === "nuevo"}"><b>Soy cliente nuevo</b><span>Es mi primera compra con Bel.</span></button>
             <button type="button" data-tipo="registrado" aria-pressed="${st.tipo === "registrado"}"><b>Ya he comprado antes</b><span>Busca mis datos de forma segura.</span></button>
           </div>
+          ${st.salida ? `<p class="salida"><span aria-hidden="true">✈️</span> Próxima salida a Ecuador: <b>${esc(textoSalida(st.salida))}</b></p>` : ""}
           <p class="callout">Tus datos se usan solo para gestionar tu pedido, el envío y la atención relacionada. No pedimos contraseñas ni datos bancarios.</p>
           <div class="actions"><button type="submit" class="btn btn-primary" id="siguiente" ${st.tipo ? "" : "disabled"}>Continuar</button></div>
         </form>`;
@@ -273,4 +281,9 @@
   }
 
   pintar();
+  if (sb) {
+    sb.rpc("proxima_salida").then(({ data }) => {
+      if (typeof data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(data)) { st.salida = data; if (st.paso === "tipo") pintar(); }
+    }, () => {});
+  }
 })();
