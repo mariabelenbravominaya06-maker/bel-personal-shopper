@@ -4,21 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#FADCE8">
+<meta name="theme-color" content="#FCE6EF">
 <title>Datos de envío · Bel Personal Shopper</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="../assets/icono-bel-64.png">
+<link rel="apple-touch-icon" href="../assets/icono-bel-180.png">
 <link rel="stylesheet" href="../assets/envios.css">
 <style>
   body{min-height:100vh;display:flex;justify-content:center}
   .app{width:100%;max-width:520px;display:flex;flex-direction:column;min-height:100vh}
-  .f-head{padding:calc(22px + env(safe-area-inset-top,0px)) 20px 14px;background:linear-gradient(180deg,var(--pink-100),var(--bg));display:flex;flex-direction:column;gap:6px}
+  .f-head{padding:calc(18px + env(safe-area-inset-top,0px)) 20px 14px;background:radial-gradient(120% 90% at 0% 0%,var(--pink-100),transparent 75%),radial-gradient(70% 70% at 100% 0%,var(--gold-100),transparent 70%),var(--bg);display:flex;flex-direction:column;gap:6px;border-top:3px solid var(--brand)}
+  .f-head .marca{margin-bottom:8px}
+  .f-head .marca span{display:block}
   .f-head .logo{font-family:var(--display);color:var(--pink-700);font-weight:600;text-decoration:none}
   .f-head p{color:var(--muted);font-size:.95rem}
   .progress{display:flex;gap:6px;margin-top:6px}
   .progress span{flex:1;height:5px;border-radius:99px;background:var(--pink-100)}
-  .progress span.on{background:var(--pink-600)}
+  .progress span.on{background:linear-gradient(90deg,var(--brand),var(--pink-600))}
   .f-body{padding:16px 20px calc(28px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px;flex:1}
   .choice{display:flex;flex-direction:column;gap:10px}
   .choice button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:16px;padding:16px;cursor:pointer}

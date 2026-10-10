@@ -1,6 +1,8 @@
-/* Estilos compartidos del formulario de envío y del dashboard. Paleta rosado, blanco y amarillo pastel. */
+/* Estilos compartidos del formulario de envío y del dashboard. Marca Bel: rosado del logo, blanco, dorado y amarillo pastel. */
 :root{
-  --bg:#FFF9FB; --surface:#FFFFFF; --pink-50:#FDEEF4; --pink-100:#FADCE8; --pink-300:#F2A7C3; --pink-600:#D0457F; --pink-700:#B0306A;
+  --bg:#FFF9FB; --surface:#FFFFFF; --pink-50:#FDEEF4; --pink-100:#FADCE8; --pink-300:#F2A7C3; --pink-600:#D02A6E; --pink-700:#B0306A;
+  --brand:#E2387C; --gold:#C9A25A; --gold-ink:#8A6A2C; --gold-100:#F8F0DF; --gold-300:#E4CA97;
+  --shadow:0 14px 34px -22px rgba(122,13,66,.45);
   --yellow-100:#FFF6D6; --yellow-300:#FBE39A; --yellow-ink:#6E5300;
   --fg:#2A1B22; --muted:#76606B; --line:#F0DCE5; --danger:#B42318; --ok-bg:#E3F5EA; --ok:#1C6B43; --on-accent:#FFFFFF;
   --display:"Fraunces",Georgia,serif; --body:"Work Sans",system-ui,-apple-system,sans-serif;
@@ -9,6 +11,7 @@
 @media (prefers-color-scheme:dark){:root{
   --bg:#1A1216; --surface:#241920; --pink-50:#2F1D26; --pink-100:#3E2331; --pink-300:#8A4A66; --pink-600:#F28DB6; --pink-700:#F7A9C9;
   --yellow-100:#3A3118; --yellow-300:#6B5A22; --yellow-ink:#F5DD8E;
+  --brand:#F06A9F; --gold:#D9B877; --gold-ink:#E9CE94; --gold-100:#33281A; --gold-300:#6B5530; --shadow:0 14px 34px -22px rgba(0,0,0,.7);
   --fg:#F8EAF0; --muted:#C7AEBB; --line:#3A2A32; --danger:#FF8A80; --ok-bg:#16352A; --ok:#86D9AE; --on-accent:#2A1B22; color-scheme:dark}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -34,7 +37,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* Botones */
 .btn{border:0;border-radius:14px;padding:14px 18px;font-weight:700;cursor:pointer;min-height:50px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
-.btn-primary{background:var(--pink-600);color:var(--on-accent)}
+.btn-primary{background:var(--pink-600);color:var(--on-accent);box-shadow:var(--shadow)}
+.btn-primary:hover{background:var(--pink-700)}
+.btn-ghost:hover{border-color:var(--pink-300);color:var(--pink-700)}
 .btn-ghost{background:transparent;border:1.5px solid var(--line);color:var(--fg)}
 .btn[disabled]{opacity:.55;cursor:default}
 .btn-sm{min-height:40px;padding:8px 14px;font-size:.92rem;border-radius:10px}
@@ -46,6 +51,19 @@ button,input,select,textarea{font:inherit;color:inherit}
 .p-ok{background:var(--ok-bg);color:var(--ok)}
 .p-pend{background:var(--yellow-100);color:var(--yellow-ink)}
 .p-st{background:var(--pink-100);color:var(--pink-700)}
+.p-gold{background:var(--gold-100);color:var(--gold-ink)}
+.p-gris{background:var(--line);color:var(--muted)}
+
+/* Marca */
+.marca{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0}
+.marca img{width:40px;height:40px;border-radius:12px;background:#fff;object-fit:contain;flex:0 0 auto;box-shadow:0 0 0 1px var(--line)}
+.marca b{display:block;font-family:var(--display);font-weight:600;color:var(--pink-700);font-size:1.12rem;line-height:1.1;white-space:nowrap}
+.marca small{display:block;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-ink);font-weight:600;white-space:nowrap}
+.corona{display:flex;align-items:center;gap:10px;color:var(--gold)}
+.corona::before,.corona::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--gold-300))}
+.corona::after{background:linear-gradient(90deg,var(--gold-300),transparent)}
+.corona svg{width:22px;height:16px;flex:0 0 auto}
+.lema{font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--pink-700);font-weight:600;text-align:center}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;z-index:50;max-width:calc(100% - 32px)}
 
 @media (max-width:420px){.row2{grid-template-columns:1fr}}

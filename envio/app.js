@@ -44,7 +44,7 @@
 
   function cabecera(titulo, sub) {
     const i = flujo().indexOf(st.paso);
-    return `<header class="f-head"><a class="logo" href="../">Bel Personal Shopper</a><h1 style="font-size:1.5rem">${titulo}</h1><p>${sub}</p>
+    return `<header class="f-head"><a class="marca" href="../"><img src="../assets/logo-bel.png" alt="" width="40" height="40"><span><b>Bel Personal Shopper</b><small>Tu estilo, sin fronteras</small></span></a><h1 style="font-size:1.5rem">${titulo}</h1><p>${sub}</p>
       <div class="progress" aria-label="Paso ${i + 1} de 4">${[0, 1, 2, 3].map((n) => `<span class="${n <= i ? "on" : ""}"></span>`).join("")}</div></header>`;
   }
 
@@ -64,7 +64,7 @@
 
   function vista() {
     if (!configurado) {
-      return `${"<header class='f-head'><span class='logo'>Bel Personal Shopper</span><h1 style='font-size:1.5rem'>Formulario no disponible</h1></header>"}
+      return `${"<header class='f-head'><span class='marca'><img src='../assets/logo-bel.png' alt='' width='40' height='40'><span><b>Bel Personal Shopper</b><small>Tu estilo, sin fronteras</small></span></span><h1 style='font-size:1.5rem'>Formulario no disponible</h1></header>"}
         <div class="f-body"><p class="alert">El formulario todavía no está conectado. Escríbenos por WhatsApp para enviarnos tus datos.</p></div>`;
     }
     const d = st.datos;

@@ -16,6 +16,17 @@
   var sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey);
   var ENLACE = CFG.enlaceFormulario || "https://belpersonalshopper.com/envio/";
 
+  var LOGO = "../assets/logo-bel.png";
+  var CORONA = '<div class="corona" aria-hidden="true"><svg viewBox="0 0 22 16" fill="currentColor"><path d="M1 4l5 4 5-7 5 7 5-4-2 10H3z"/><rect x="3" y="14" width="16" height="2" rx="1"/></svg></div>';
+  var ICONOS = {
+    caja: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>',
+    casa: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+    cobro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M7 9v.01M17 15v.01"/></svg>',
+    corona: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 10H5z"/></svg>'
+  };
+  function marca(sub) {
+    return '<div class="marca"><img src="' + LOGO + '" alt="" width="40" height="40"><div><b>Bel Personal Shopper</b><small>' + esc(sub) + "</small></div></div>";
+  }
   var ESTADOS = ["NUEVO", "VENTA CONFIRMADA", "PAGO CONFIRMADO", "DATOS DE ENVÍO PENDIENTES",
     "DATOS DE ENVÍO COMPLETOS", "COMPRADO", "ENVIADO", "ENTREGADO", "CANCELADO"];
   var VALORES = [
@@ -136,7 +147,9 @@
   function pantallaLogin(aviso) {
     app.innerHTML =
       '<div class="login"><form id="f-login" novalidate>' +
-      '<h1>Panel de pedidos</h1><p style="color:var(--muted)">Bel Personal Shopper · acceso privado</p>' +
+      '<img class="logo" src="' + LOGO + '" alt="Bel Personal Shopper" width="96" height="96">' +
+      '<h1>Bel Personal Shopper</h1>' + CORONA + '<p class="lema">Tu estilo, sin fronteras</p>' +
+      '<p class="acceso">Panel de pedidos · acceso privado</p>' +
       (aviso ? '<div class="alert" role="alert">' + esc(aviso) + "</div>" : "") +
       '<div class="field"><label for="l-email">Correo</label><input id="l-email" type="email" autocomplete="username" required></div>' +
       '<div class="field"><label for="l-pass">Contraseña</label><input id="l-pass" type="password" autocomplete="current-password" required></div>' +
@@ -220,14 +233,17 @@
   function pantallaPanel() {
     var f = st.filtros;
     app.innerHTML =
-      '<header class="top"><h1>Pedidos</h1>' +
+      '<header class="top"><div class="top-in">' + marca("Panel de pedidos") +
+      '<button class="btn btn-sm btn-ghost" id="b-salir" type="button">Salir</button>' +
+      '<div class="acciones">' +
+      '<button class="btn btn-sm btn-primary" id="b-nuevo" type="button">+ Pedido manual</button>' +
       '<button class="btn btn-sm aviso-nuevos" id="b-nuevos" type="button" hidden></button>' +
       '<button class="btn btn-sm btn-ghost" id="b-sonido" type="button" aria-pressed="' + st.sonido + '"></button>' +
       '<button class="btn btn-sm btn-ghost" id="b-excel" type="button">Descargar Excel</button>' +
       '<button class="btn btn-sm btn-ghost" id="b-enlace" type="button">Copiar enlace del formulario</button>' +
-      '<button class="btn btn-sm btn-primary" id="b-nuevo" type="button">+ Pedido manual</button>' +
-      '<button class="btn btn-sm btn-ghost" id="b-salir" type="button">Salir</button></header>' +
+      "</div></div></header>" +
       '<main class="wrap">' +
+      '<div class="titulo"><h2>Pedidos</h2><p id="t-cuenta"></p></div>' +
       '<section class="cards" id="resumen" aria-label="Resumen"></section>' +
       '<section class="filters" aria-label="Filtros">' +
       '<input class="q" id="f-q" type="search" placeholder="Buscar por cliente, pedido (BP-0001) o teléfono" value="' + esc(f.q) + '" aria-label="Buscar">' +
@@ -241,6 +257,7 @@
       '<input id="f-hasta" type="date" value="' + esc(f.hasta) + '" aria-label="Hasta">' +
       "</section>" +
       '<div id="lista"></div></main>' +
+      '<footer class="pie">' + CORONA + '<p class="lema">Tu estilo, sin fronteras</p></footer>' +
       '<div id="detalle"></div>' +
       '<dialog id="d-nuevo"><form method="dialog" id="f-nuevo" novalidate><h3>Nuevo pedido manual</h3>' +
       '<p style="color:var(--muted);font-size:.9rem">Para clientes que escriben por WhatsApp. Luego completas los datos de envío y los valores.</p>' +
@@ -281,10 +298,12 @@
       if (diaLocal(p.creado_en).slice(0, 7) === mes) comMes += num(p.comision);
     });
     el.innerHTML =
-      '<div class="card"><span>Pedidos activos</span><b>' + activos + "</b></div>" +
-      '<div class="card"><span>Datos de envío pendientes</span><b>' + pendientes + "</b></div>" +
-      '<div class="card y"><span>Por cobrar</span><b>' + usd(porCobrar) + "</b></div>" +
-      '<div class="card y"><span>Comisiones del mes</span><b>' + usd(comMes) + "</b></div>";
+      '<div class="card"><i>' + ICONOS.caja + '</i><span>Pedidos activos</span><b>' + activos + "</b></div>" +
+      '<div class="card"><i>' + ICONOS.casa + '</i><span>Datos de envío pendientes</span><b>' + pendientes + "</b></div>" +
+      '<div class="card y"><i>' + ICONOS.cobro + '</i><span>Por cobrar</span><b>' + usd(porCobrar) + "</b></div>" +
+      '<div class="card y"><i>' + ICONOS.corona + '</i><span>Comisiones del mes</span><b>' + usd(comMes) + "</b></div>";
+    var tc = document.getElementById("t-cuenta");
+    if (tc) tc.textContent = st.pedidos.length + (st.pedidos.length === 1 ? " pedido" : " pedidos") + " en total";
   }
 
   function filtrados() {
@@ -308,7 +327,9 @@
   }
 
   function pillEstado(p) {
-    var cls = p.estado === "ENTREGADO" ? "p-ok" : p.estado === "CANCELADO" ? "p-pend" : "p-st";
+    var cls = p.estado === "ENTREGADO" ? "p-ok" : p.estado === "CANCELADO" ? "p-gris" :
+      (p.estado === "VENTA CONFIRMADA" || p.estado === "PAGO CONFIRMADO") ? "p-gold" :
+      p.estado === "DATOS DE ENVÍO PENDIENTES" ? "p-pend" : "p-st";
     return '<span class="pill ' + cls + '">' + esc(p.estado) + "</span>";
   }
   function pillForm(p) {
@@ -327,7 +348,7 @@
     }
     var filas = lista.map(function (p) {
       var c = p.clientes || {};
-      return '<tr data-id="' + esc(p.id) + '" tabindex="0"' + (esNuevo(p) ? ' class="nuevo"' : "") + '><td><b>' + esc(p.codigo) + "</b>" +
+      return '<tr data-id="' + esc(p.id) + '" tabindex="0"' + (esNuevo(p) ? ' class="nuevo"' : "") + '><td class="cod">' + esc(p.codigo) +
         (esNuevo(p) ? '<span class="tag-nuevo">Nuevo</span>' : "") + "</td><td>" + esc(fecha(p.creado_en)) +
         "</td><td>" + esc(c.nombre) + "</td><td>" + esc(c.whatsapp) + "</td><td>" + pillEstado(p) + "</td><td>" + pillForm(p) +
         '</td><td class="num">' + num(p.cantidad_productos) + '</td><td class="num">' + usd(p.valor_productos) +
@@ -462,7 +483,7 @@
     document.body.style.overflow = "hidden";
     document.getElementById("detalle").innerHTML =
       '<div class="overlay" id="ov"></div><aside class="panel" id="panel" role="dialog" aria-modal="true" aria-label="Pedido ' + esc(p.codigo) + '">' +
-      '<div class="panel-head"><h2>' + esc(p.codigo) + '</h2><button class="btn btn-sm btn-ghost" id="b-cerrar" type="button">Cerrar</button></div>' +
+      '<div class="panel-head"><img src="' + LOGO + '" alt="" width="34" height="34"><h2>' + esc(p.codigo) + '</h2><button class="btn btn-sm btn-ghost" id="b-cerrar" type="button">Cerrar</button></div>' +
       '<div class="panel-body">' +
       '<section class="sec"><div><b>' + esc(c.nombre) + "</b><br><small style=\"color:var(--muted)\">" + esc(c.whatsapp) + " · creado " + esc(fechaHora(p.creado_en)) +
       " · " + (p.origen === "FORMULARIO" ? "desde el formulario" : "manual") + "</small></div>" +
