@@ -1097,6 +1097,7 @@
         '<div class="r">' + pillEstado(p) + "<small>" + esc(libras(p.libras)) + "</small>" +
         '<span class="' + (num(p.saldo) > 0 ? "debe" : "pagado") + '">' + (num(p.saldo) > 0 ? "Debe " + usd(p.saldo) : "Pagado") + "</span></div>" +
         '<div class="btns">' + (wa ? '<a class="btn btn-sm btn-wa" target="_blank" rel="noopener" data-avisar="' + esc(p.id) + '" href="https://wa.me/' + esc(wa) + "?text=" + encodeURIComponent(mensajeSalida(p, f)) + '">Avisar por WhatsApp</a>' : "") +
+        (tieneDatosEnvio(p) ? '<button class="btn btn-sm btn-ghost" type="button" data-etiqueta="' + esc(p.id) + '">🏷 Etiqueta</button>' : '<small class="nada">Sin datos de envío</small>') +
         (f.estado === "ABIERTA" ? '<button class="btn btn-sm btn-ghost" type="button" data-sacar="' + esc(p.id) + '">' + conf("sacar-" + p.id, "Quitar", "¿Seguro? Toca otra vez") + "</button>" : "") +
         "</div></div>";
     }).join("");
@@ -1121,7 +1122,7 @@
       "<div><span>Total</span><b>" + usd(r.total) + "</b></div><div><span>Pagado</span><b>" + usd(r.pagado) + '</b></div><div class="y"><span>Por cobrar</span><b>' + usd(r.saldo) + "</b></div></div>" +
       (r.conSaldo.length ? '<p class="callout">⚠ Con saldo pendiente: ' + r.conSaldo.map(function (p) { return esc(p.codigo) + " (" + usd(p.saldo) + ")"; }).join(", ") + "</p>" : "") +
       '<div class="btns">' + acciones + '<button class="btn btn-sm btn-ghost" id="b-excel-fecha" type="button">Excel de esta fecha</button>' +
-      (r.activos.length ? '<button class="btn btn-sm btn-ghost" id="b-etiquetas-fecha" type="button">🏷 Etiquetas</button>' : "") + "</div></section>" +
+      (r.activos.length ? '<button class="btn btn-sm btn-primary" id="b-etiquetas-fecha" type="button">🏷 Imprimir todas las etiquetas</button>' : "") + "</div></section>" +
       '<section class="sec"><h3>Pedidos en este envío (' + r.pedidos.length + ")</h3>" +
       (filas ? '<div class="fps">' + filas + "</div>" : '<p class="hint">Todavía no hay pedidos en esta fecha.</p>') + "</section>" +
       agregar +
@@ -1139,6 +1140,9 @@
       if (!con.length) { toast("Ningún pedido de esta fecha tiene datos de envío."); return; }
       abrirEtiquetas(con, r.activos.length - con.length);
     };
+    document.querySelectorAll("[data-etiqueta]").forEach(function (b) {
+      b.onclick = function () { var x = buscarPedido(b.getAttribute("data-etiqueta")); if (x) abrirEtiquetas([x], 0); };
+    });
     document.querySelectorAll("[data-ver]").forEach(function (b) { b.onclick = function () { abrirPanel(b.getAttribute("data-ver")); }; });
     document.querySelectorAll("[data-marcar]").forEach(function (b) {
       b.onclick = function () {
