@@ -268,7 +268,6 @@ begin
   if p_clave is null or p_clave = '' then
     return false;
   end if;
-  delete from public.intentos_publicos where creado_en < now() - interval '1 day';
   select count(*) into n from public.intentos_publicos
    where tipo = p_tipo and clave = p_clave and creado_en > now() - p_ventana;
   insert into public.intentos_publicos (tipo, clave) values (p_tipo, p_clave);
@@ -558,6 +557,14 @@ grant execute on function public.es_admin() to authenticated;
 -- Funciones usadas por columnas calculadas, triggers y políticas.
 grant execute on function public.normalizar_telefono(text), public.normalizar_nombre(text),
   public.enmascarar(text), public.tocar_actualizado_en() to anon, authenticated;
+
+-- Funciones sin search_path fijo (recomendación de seguridad de Supabase).
+alter function public.tocar_actualizado_en() set search_path = public;
+alter function public.enmascarar(text) set search_path = public;
+alter function public.ip_solicitud() set search_path = public;
+alter function public._texto(jsonb, text, int) set search_path = public;
+alter function public.normalizar_telefono(text) set search_path = public;
+alter function public.normalizar_nombre(text) set search_path = public;
 
 -- Tiempo real para el dashboard (respeta RLS).
 do $$
