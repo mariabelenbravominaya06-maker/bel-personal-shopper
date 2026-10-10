@@ -19,7 +19,7 @@
   var ESTADOS = ["NUEVO", "VENTA CONFIRMADA", "PAGO CONFIRMADO", "DATOS DE ENVÍO PENDIENTES",
     "DATOS DE ENVÍO COMPLETOS", "COMPRADO", "ENVIADO", "ENTREGADO", "CANCELADO"];
   var VALORES = [
-    ["valor_productos", "Valor productos ($)", "0.01"],
+    ["valor_productos", "Valor productos sin tax ($)", "0.01"],
     ["cantidad_productos", "Cantidad de productos", "1"],
     ["tax_porcentaje", "Tax (%)", "0.001"],
     ["libras", "Libras", "0.01"],
@@ -38,8 +38,14 @@
   var st = {
     usuario: null, pedidos: [], cargando: false, error: "",
     filtros: { q: "", estado: "", desde: "", hasta: "", saldo: "" },
-    abierto: null, historial: [], editandoEnvio: false
+    abierto: null, historial: [], editandoEnvio: false,
+    vistoHasta: leerVisto(), sonido: leerPref("bel_sonido", "1") === "1", quitar: null
   };
+
+  // Preferencias guardadas solo en este navegador.
+  function leerPref(k, def) { try { var v = localStorage.getItem(k); return v === null ? def : v; } catch (e) { return def; } }
+  function guardarPref(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } }
+  function leerVisto() { var v = leerPref("bel_visto_hasta", ""); return v || new Date().toISOString(); }
 
   // ---------- Utilidades ----------
   function esc(v) {
@@ -173,7 +179,7 @@
   }
 
   // ---------- Datos ----------
-  var SELECT = "*, clientes(nombre, whatsapp), datos_envio(*)";
+  var SELECT = "*, clientes(nombre, whatsapp), datos_envio(*), productos_pedido(*)";
 
   function cargar() {
     st.cargando = true; pintarLista();
@@ -202,7 +208,10 @@
     sb.removeAllChannels();
     var recargar = function () { clearTimeout(temporizador); temporizador = setTimeout(cargar, 600); };
     sb.channel("pedidos-admin")
-      .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, recargar)
+      .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, function (cambio) {
+        if (cambio && cambio.eventType === "INSERT") sonarAviso();
+        recargar();
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "datos_envio" }, recargar)
       .subscribe();
   }
@@ -212,6 +221,9 @@
     var f = st.filtros;
     app.innerHTML =
       '<header class="top"><h1>Pedidos</h1>' +
+      '<button class="btn btn-sm aviso-nuevos" id="b-nuevos" type="button" hidden></button>' +
+      '<button class="btn btn-sm btn-ghost" id="b-sonido" type="button" aria-pressed="' + st.sonido + '"></button>' +
+      '<button class="btn btn-sm btn-ghost" id="b-excel" type="button">Descargar Excel</button>' +
       '<button class="btn btn-sm btn-ghost" id="b-enlace" type="button">Copiar enlace del formulario</button>' +
       '<button class="btn btn-sm btn-primary" id="b-nuevo" type="button">+ Pedido manual</button>' +
       '<button class="btn btn-sm btn-ghost" id="b-salir" type="button">Salir</button></header>' +
@@ -239,6 +251,12 @@
       '<button class="btn btn-sm btn-primary" id="n-ok" type="button">Crear pedido</button></div></form></dialog>';
 
     document.getElementById("b-salir").onclick = salir;
+    document.getElementById("b-excel").onclick = descargarExcel;
+    document.getElementById("b-nuevos").onclick = marcarVistos;
+    document.getElementById("b-sonido").onclick = function () {
+      st.sonido = !st.sonido; guardarPref("bel_sonido", st.sonido ? "1" : "0"); pintarAvisos();
+      if (st.sonido) sonarAviso(true);
+    };
     document.getElementById("b-enlace").onclick = function () { copiar(ENLACE); };
     document.getElementById("b-nuevo").onclick = abrirNuevo;
     document.getElementById("n-ok").onclick = crearManual;
@@ -250,6 +268,7 @@
   }
 
   function pintarResumen() {
+    pintarAvisos();
     var el = document.getElementById("resumen");
     if (!el) return;
     var ahora = new Date(), mes = ahora.getFullYear() + "-" + String(ahora.getMonth() + 1).padStart(2, "0");
@@ -308,7 +327,8 @@
     }
     var filas = lista.map(function (p) {
       var c = p.clientes || {};
-      return '<tr data-id="' + esc(p.id) + '" tabindex="0"><td><b>' + esc(p.codigo) + "</b></td><td>" + esc(fecha(p.creado_en)) +
+      return '<tr data-id="' + esc(p.id) + '" tabindex="0"' + (esNuevo(p) ? ' class="nuevo"' : "") + '><td><b>' + esc(p.codigo) + "</b>" +
+        (esNuevo(p) ? '<span class="tag-nuevo">Nuevo</span>' : "") + "</td><td>" + esc(fecha(p.creado_en)) +
         "</td><td>" + esc(c.nombre) + "</td><td>" + esc(c.whatsapp) + "</td><td>" + pillEstado(p) + "</td><td>" + pillForm(p) +
         '</td><td class="num">' + num(p.cantidad_productos) + '</td><td class="num">' + usd(p.valor_productos) +
         '</td><td class="num">' + usd(p.tax_monto) + '</td><td class="num">' + usd(p.costo_envio) +
@@ -317,8 +337,8 @@
     }).join("");
     var items = lista.map(function (p) {
       var c = p.clientes || {};
-      return '<button class="item" type="button" data-id="' + esc(p.id) + '"><div class="r"><b>' + esc(p.codigo) + " · " + esc(c.nombre) +
-        "</b>" + pillForm(p) + '</div><div class="r">' + pillEstado(p) + "<small>" + esc(fecha(p.creado_en)) + "</small></div>" +
+      return '<button class="item' + (esNuevo(p) ? " nuevo" : "") + '" type="button" data-id="' + esc(p.id) + '"><div class="r"><b>' + esc(p.codigo) + " · " + esc(c.nombre) +
+        (esNuevo(p) ? '<span class="tag-nuevo">Nuevo</span>' : "") + "</b>" + pillForm(p) + '</div><div class="r">' + pillEstado(p) + "<small>" + esc(fecha(p.creado_en)) + "</small></div>" +
         '<div class="r"><span>Total ' + usd(p.total) + '</span><span class="' + (num(p.saldo) > 0 ? "debe" : "") + '">Debe ' + usd(p.saldo) + "</span></div></button>";
     }).join("");
     el.innerHTML =
@@ -347,6 +367,7 @@
     if (nombre.length < 3) { err.textContent = "Escribe el nombre del cliente."; err.hidden = false; return; }
     if (!/^\+\d{8,15}$/.test(wa)) { err.textContent = "Escribe el WhatsApp con código de país, por ejemplo +593991234567."; err.hidden = false; return; }
     btn.disabled = true;
+    silencioHasta = Date.now() + 8000; // el pedido manual lo creas tú: no suena
     sb.rpc("crear_pedido_manual", { p_nombre: nombre, p_whatsapp: wa }).then(function (r) {
       btn.disabled = false;
       if (r.error) { err.textContent = mensajeError(r.error); err.hidden = false; return; }
@@ -359,7 +380,7 @@
 
   // ---------- Detalle ----------
   function abrirPanel(id) {
-    st.abierto = id; st.editandoEnvio = false; st.historial = [];
+    st.abierto = id; st.editandoEnvio = false; st.historial = []; st.quitar = null;
     pintarPanel();
     cargarHistorial();
   }
@@ -411,10 +432,12 @@
     var tieneDir = e && e.calle_principal;
     var saludo = "Hola " + ((c.nombre || "").split(" ")[0] || "") + ", para enviar tu pedido necesito tus datos de envío. Puedes llenarlos aquí: " + ENLACE;
 
+    var prods = productosDe(p), conLista = prods.length > 0;
     var valores = VALORES.map(function (v) {
+      var fijo = conLista && (v[0] === "valor_productos" || v[0] === "cantidad_productos");
       return '<div class="field"><label for="v-' + v[0] + '">' + esc(v[1]) + '</label><input id="v-' + v[0] +
         '" type="number" inputmode="decimal" min="0"' + (v[0] === "tax_porcentaje" ? ' max="100"' : "") + ' step="' + v[2] +
-        '" value="' + esc(p[v[0]]) + '"></div>';
+        '" value="' + esc(p[v[0]]) + '"' + (fijo ? " readonly" : "") + "></div>";
     }).join("");
 
     var envio;
@@ -444,7 +467,8 @@
       '<section class="sec"><div><b>' + esc(c.nombre) + "</b><br><small style=\"color:var(--muted)\">" + esc(c.whatsapp) + " · creado " + esc(fechaHora(p.creado_en)) +
       " · " + (p.origen === "FORMULARIO" ? "desde el formulario" : "manual") + "</small></div>" +
       '<div class="btns">' + (wa ? '<a class="btn btn-sm btn-ghost" target="_blank" rel="noopener" href="https://wa.me/' + esc(wa) + '">Abrir WhatsApp</a>' +
-        '<a class="btn btn-sm btn-ghost" target="_blank" rel="noopener" href="https://wa.me/' + esc(wa) + "?text=" + encodeURIComponent(saludo) + '">Enviar enlace del formulario</a>' : "") +
+        '<a class="btn btn-sm btn-ghost" target="_blank" rel="noopener" href="https://wa.me/' + esc(wa) + "?text=" + encodeURIComponent(saludo) + '">Enviar enlace del formulario</a>' +
+        '<a class="btn btn-sm btn-wa" id="b-cuenta" target="_blank" rel="noopener" href="https://wa.me/' + esc(wa) + "?text=" + encodeURIComponent(mensajeCuenta(p)) + '">Enviar cuenta por WhatsApp</a>' : "") +
       '<button class="btn btn-sm btn-ghost" id="b-copiar-enlace" type="button">Copiar enlace</button></div></section>' +
 
       '<section class="sec"><h3>Estado</h3><div class="field"><label for="p-estado">Estado del pedido</label><select id="p-estado">' +
@@ -453,10 +477,14 @@
       esc(p.notas) + '</textarea></div><div class="btns"><button class="btn btn-sm btn-primary" id="b-estado" type="button">Guardar estado y notas</button></div>' +
       "<small style=\"color:var(--muted)\">Formulario: " + (p.estado_formulario === "COMPLETO" ? "completo" : "pendiente") + ". Los pagos se confirman a mano; nada cambia solo.</small></section>" +
 
-      '<section class="sec"><h3>Valores</h3><div class="grid3">' + valores + '</div>' +
+      htmlProductos(p, prods) +
+      '<section class="sec"><h3>Valores</h3>' +
+      (conLista ? '<p class="hint">El valor de productos (sin tax) y la cantidad se calculan con la lista de productos.</p>' : "") +
+      '<div class="grid3">' + valores + '</div>' +
       '<div class="totals" id="totales">' + htmlTotales(calcular(p)) + "</div>" +
       '<p class="msg" id="v-err" style="color:var(--danger);font-size:.88rem" hidden></p>' +
-      '<div class="btns"><button class="btn btn-sm btn-primary" id="b-valores" type="button">Guardar valores</button></div></section>' +
+      '<div class="btns"><button class="btn btn-sm btn-primary" id="b-valores" type="button">Guardar valores</button></div>' +
+      '<p class="hint">La cuenta por WhatsApp usa los valores guardados.</p></section>' +
 
       '<section class="sec"><h3>Datos de envío</h3>' + envio + "</section>" +
       '<section class="sec"><h3>Historial de cambios</h3><div class="hist" id="hist">' + htmlHistorial() + "</div></section>" +
@@ -466,7 +494,8 @@
     document.getElementById("b-cerrar").onclick = cerrarPanel;
     document.getElementById("b-copiar-enlace").onclick = function () { copiar(ENLACE); };
     document.getElementById("b-estado").onclick = function () { guardarEstado(p); };
-    document.getElementById("b-valores").onclick = function () { guardarValores(p); };
+    document.getElementById("b-valores").onclick = function () { guardarValores(p, conLista); };
+    conectarProductos(p);
     VALORES.forEach(function (v) {
       document.getElementById("v-" + v[0]).addEventListener("input", function () {
         document.getElementById("totales").innerHTML = htmlTotales(calcular(leerValores()));
@@ -505,9 +534,10 @@
     guardarCambiosPedido(p, { estado: estado, notas: notas || null }, document.getElementById("b-estado"), "Estado guardado");
   }
 
-  function guardarValores(p) {
+  function guardarValores(p, conLista) {
     var v = leerValores(), err = document.getElementById("v-err"), cambios = {}, malo = "";
     VALORES.forEach(function (d) {
+      if (conLista && (d[0] === "valor_productos" || d[0] === "cantidad_productos")) return;
       var t = String(v[d[0]]).trim(), n = t === "" ? 0 : Number(t);
       if (!isFinite(n) || n < 0) malo = malo || d[1];
       else if (d[0] === "tax_porcentaje" && n > 100) malo = malo || d[1];
@@ -541,6 +571,351 @@
         pintarLista(); pintarPanel(); cargarHistorial();
       });
     });
+  }
+
+  // ---------- Productos del pedido (precios sin tax) ----------
+  function productosDe(p) {
+    var l = p.productos_pedido || [];
+    return l.slice().sort(function (a, b) { return String(a.creado_en).localeCompare(String(b.creado_en)); });
+  }
+
+  function htmlProductos(p, prods) {
+    var filas = prods.map(function (x) {
+      var nombre = x.enlace
+        ? '<a href="' + esc(x.enlace) + '" target="_blank" rel="noopener noreferrer">' + esc(x.descripcion) + "</a>"
+        : esc(x.descripcion);
+      var quitando = st.quitar === x.id;
+      return '<div class="prod" data-prod="' + esc(x.id) + '">' +
+        '<div class="desc"><span>' + nombre + "</span></div>" +
+        '<label>Descripción<input data-k="descripcion" maxlength="200" value="' + esc(x.descripcion) + '"></label>' +
+        '<label>Cant.<input data-k="cantidad" type="number" inputmode="numeric" min="1" max="999" step="1" value="' + esc(x.cantidad) + '"></label>' +
+        '<label>Precio c/u sin tax<input data-k="precio_unitario" type="number" inputmode="decimal" min="0" step="0.01" value="' + esc(x.precio_unitario) + '"></label>' +
+        '<div class="sub">Subtotal ' + usd(x.subtotal) + "</div>" +
+        '<div class="acc"><button class="btn btn-sm btn-primary" data-acc="guardar" type="button">Guardar cambio</button>' +
+        '<button class="btn btn-sm btn-ghost" data-acc="quitar" type="button">' + (quitando ? "¿Seguro? Toca otra vez" : "Quitar") + "</button></div></div>";
+    }).join("");
+    var suma = prods.reduce(function (t, x) { return t + num(x.subtotal); }, 0);
+    return '<section class="sec"><h3>Productos</h3>' +
+      '<p class="nota-tax"><b>Precios sin tax.</b> El tax (' + num(p.tax_porcentaje) + ' %) se suma aparte en Valores.</p>' +
+      (prods.length ? '<div class="prods">' + filas + "</div>" +
+        '<div class="totals"><div class="big"><span>Valor productos sin tax</span><span>' + usd(suma) + "</span></div></div>"
+        : '<p class="hint">Aún no hay productos. Si los agregas, el valor y la cantidad del pedido se calculan solos.</p>') +
+      '<form class="add-prod" id="f-prod" novalidate>' +
+      '<div class="field full"><label for="np-desc">Producto</label><input id="np-desc" maxlength="200" placeholder="Ej. Perfume Bombshell 100 ml"></div>' +
+      '<div class="field full"><label for="np-enlace">Enlace <span class="opt">(opcional)</span></label><input id="np-enlace" type="url" inputmode="url" maxlength="1000" placeholder="https://…"></div>' +
+      '<div class="field"><label for="np-cant">Cantidad</label><input id="np-cant" type="number" inputmode="numeric" min="1" max="999" step="1" value="1"></div>' +
+      '<div class="field"><label for="np-precio">Precio c/u sin tax ($)</label><input id="np-precio" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div>' +
+      '<p class="msg full" id="np-err" style="color:var(--danger);font-size:.88rem" hidden></p>' +
+      '<div class="btns full"><button class="btn btn-sm btn-primary" type="submit">+ Agregar producto</button></div></form></section>';
+  }
+
+  function validarProducto(d) {
+    if (!d.descripcion) return "Escribe el nombre del producto.";
+    if (d.enlace && !/^https?:\/\/\S+$/i.test(d.enlace)) return "El enlace debe empezar con https://";
+    if (!Number.isInteger(d.cantidad) || d.cantidad < 1 || d.cantidad > 999) return "La cantidad debe ser un número entero entre 1 y 999.";
+    if (!isFinite(d.precio_unitario) || d.precio_unitario < 0) return "El precio no puede ser negativo.";
+    return "";
+  }
+
+  function recargarPedido(id, ok) {
+    sb.from("pedidos").select(SELECT).eq("id", id).single().then(function (r) {
+      if (!r.error) reemplazar(r.data);
+      pintarResumen(); pintarLista(); pintarPanel(); cargarHistorial();
+      if (ok) toast(ok);
+    });
+  }
+
+  function conectarProductos(p) {
+    var f = document.getElementById("f-prod");
+    if (f) f.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var d = {
+        descripcion: document.getElementById("np-desc").value.trim(),
+        enlace: document.getElementById("np-enlace").value.trim() || null,
+        cantidad: Number(document.getElementById("np-cant").value || 1),
+        precio_unitario: r2(Number(document.getElementById("np-precio").value || 0))
+      };
+      var err = document.getElementById("np-err"), msg = validarProducto(d);
+      if (msg) { err.textContent = msg; err.hidden = false; return; }
+      var btn = f.querySelector("button[type=submit]"); btn.disabled = true;
+      sb.from("productos_pedido").insert(Object.assign({ pedido_id: p.id }, d)).then(function (r) {
+        btn.disabled = false;
+        if (r.error) { err.textContent = mensajeError(r.error); err.hidden = false; return; }
+        recargarPedido(p.id, "Producto agregado");
+      });
+    });
+    document.querySelectorAll("[data-prod]").forEach(function (fila) {
+      var id = fila.getAttribute("data-prod");
+      fila.querySelector('[data-acc="guardar"]').onclick = function (ev) {
+        var leer = function (k) { return fila.querySelector('[data-k="' + k + '"]').value; };
+        var d = { descripcion: leer("descripcion").trim(), cantidad: Number(leer("cantidad")), precio_unitario: r2(Number(leer("precio_unitario"))) };
+        var msg = validarProducto(d);
+        if (msg) { toast(msg); return; }
+        ev.target.disabled = true;
+        sb.from("productos_pedido").update(d).eq("id", id).then(function (r) {
+          ev.target.disabled = false;
+          if (r.error) { toast(mensajeError(r.error)); return; }
+          recargarPedido(p.id, "Producto actualizado");
+        });
+      };
+      fila.querySelector('[data-acc="quitar"]').onclick = function () {
+        if (st.quitar !== id) { st.quitar = id; pintarPanel(); return; }
+        st.quitar = null;
+        sb.from("productos_pedido").delete().eq("id", id).then(function (r) {
+          if (r.error) { toast(mensajeError(r.error)); return; }
+          recargarPedido(p.id, "Producto quitado");
+        });
+      };
+    });
+  }
+
+  // ---------- Cuenta por WhatsApp (gratis: abre WhatsApp con el mensaje listo) ----------
+  function mensajeCuenta(p) {
+    var c = p.clientes || {}, prods = productosDe(p), k = calcular(p);
+    var lineas = ["Hola " + ((c.nombre || "").split(" ")[0] || "") + " 😊 Este es el detalle de tu pedido " + p.codigo + ":", ""];
+    prods.forEach(function (x) { lineas.push("• " + x.descripcion + " (x" + x.cantidad + "): " + usd(x.subtotal)); });
+    if (prods.length) lineas.push("");
+    lineas.push("Productos (sin tax): " + usd(p.valor_productos));
+    lineas.push("Tax (" + num(p.tax_porcentaje) + " %): " + usd(k.tax));
+    lineas.push("Envío (" + num(p.libras) + " lb × " + usd(p.valor_libra) + "): " + usd(k.envio));
+    lineas.push("Comisión (" + num(p.cantidad_productos) + " × " + usd(p.comision_por_producto) + "): " + usd(k.comision));
+    lineas.push("*Total: " + usd(k.total) + "*");
+    lineas.push("Pagado: " + usd(p.pagado));
+    lineas.push(k.saldo > 0 ? "*Saldo pendiente: " + usd(k.saldo) + "*" : "Saldo pendiente: $0,00 ✅");
+    lineas.push("", "¡Gracias por comprar con Bel Personal Shopper! 💕");
+    return lineas.join("\n");
+  }
+
+  // ---------- Aviso de pedidos nuevos ----------
+  function esNuevo(p) { return p.origen === "FORMULARIO" && new Date(p.creado_en) > new Date(st.vistoHasta); }
+  function pintarAvisos() {
+    var n = st.pedidos.filter(esNuevo).length;
+    var b = document.getElementById("b-nuevos");
+    if (b) { b.hidden = n === 0; b.textContent = "🔔 " + n + (n === 1 ? " nuevo · marcar visto" : " nuevos · marcar vistos"); }
+    var s = document.getElementById("b-sonido");
+    if (s) { s.textContent = st.sonido ? "🔊 Sonido activado" : "🔇 Sonido apagado"; s.setAttribute("aria-pressed", String(st.sonido)); }
+    document.title = (n ? "(" + n + ") " : "") + "Panel de pedidos · Bel Personal Shopper";
+  }
+  function marcarVistos() {
+    var max = st.pedidos.reduce(function (m, p) { return new Date(p.creado_en) > new Date(m) ? p.creado_en : m; }, st.vistoHasta);
+    st.vistoHasta = max; guardarPref("bel_visto_hasta", max);
+    pintarAvisos(); pintarLista();
+  }
+  var audio = null;
+  function prepararAudio() {
+    try {
+      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === "suspended") audio.resume();
+    } catch (e) { audio = null; }
+  }
+  // El navegador solo deja sonar después de un toque en la página.
+  document.addEventListener("pointerdown", prepararAudio, { passive: true });
+  var silencioHasta = 0;
+  function sonarAviso(forzar) {
+    if (!forzar && (!st.sonido || Date.now() < silencioHasta)) return;
+    prepararAudio();
+    if (!audio) return;
+    var t = audio.currentTime;
+    [880, 1318.5].forEach(function (f, i) {
+      var o = audio.createOscillator(), g = audio.createGain();
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t + i * 0.18);
+      g.gain.exponentialRampToValueAtTime(0.25, t + i * 0.18 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.18 + 0.35);
+      o.connect(g); g.connect(audio.destination);
+      o.start(t + i * 0.18); o.stop(t + i * 0.18 + 0.4);
+    });
+  }
+
+  // ---------- Excel con colores ----------
+  var EXCELJS = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";
+  function cargarExcelJS() {
+    if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+    return new Promise(function (ok, mal) {
+      var sc = document.createElement("script");
+      sc.src = EXCELJS; sc.onload = function () { ok(window.ExcelJS); };
+      sc.onerror = function () { mal(new Error("No se pudo cargar el generador de Excel.")); };
+      document.head.appendChild(sc);
+    });
+  }
+  // Excel guarda las fechas sin zona horaria: se pasa la hora local.
+  function fechaExcel(v) { var d = new Date(v); return new Date(d.getTime() - d.getTimezoneOffset() * 60000); }
+
+  function descargarExcel() {
+    var lista = filtrados();
+    if (!lista.length) { toast("No hay pedidos para descargar con estos filtros."); return; }
+    var btn = document.getElementById("b-excel"); btn.disabled = true; btn.textContent = "Preparando…";
+    cargarExcelJS().then(function (ExcelJS) {
+      return armarExcel(ExcelJS, lista).xlsx.writeBuffer();
+    }).then(function (buf) {
+      var blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = "pedidos-bel-" + diaLocal(new Date()) + ".xlsx";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+      toast("Excel descargado (" + lista.length + " pedidos)");
+    }).catch(function (e) {
+      toast((e && e.message) || "No se pudo crear el Excel.");
+    }).then(function () { btn.disabled = false; btn.textContent = "Descargar Excel"; });
+  }
+
+  var X = { rosa: "FFD0457F", rosaOscuro: "FFB0306A", rosaClaro: "FFFADCE8", rosaFondo: "FFFFF5F9", amarillo: "FFFFF6D6",
+    amarilloFuerte: "FFFBE39A", tinta: "FF2A1B22", gris: "FF76606B", verde: "FFE3F5EA", verdeTinta: "FF1C6B43", blanco: "FFFFFFFF", linea: "FFF0DCE5" };
+  var MONEDA = '"$"#,##0.00';
+  function relleno(c) { return { type: "pattern", pattern: "solid", fgColor: { argb: c } }; }
+  var BORDE = { top: { style: "thin", color: { argb: X.linea } }, bottom: { style: "thin", color: { argb: X.linea } },
+    left: { style: "thin", color: { argb: X.linea } }, right: { style: "thin", color: { argb: X.linea } } };
+
+  function hojaConTitulo(wb, nombre, titulo, columnas) {
+    var ws = wb.addWorksheet(nombre, { views: [{ state: "frozen", ySplit: 3, showGridLines: false }],
+      pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+    ws.columns = columnas.map(function (c) { return { key: c.k, width: c.w }; });
+    var ultima = ws.getColumn(columnas.length).letter;
+    ws.mergeCells("A1:" + ultima + "1");
+    var t = ws.getCell("A1");
+    t.value = titulo; t.font = { name: "Calibri", size: 16, bold: true, color: { argb: X.blanco } };
+    t.fill = relleno(X.rosa); t.alignment = { vertical: "middle", indent: 1 };
+    ws.getRow(1).height = 30;
+    ws.mergeCells("A2:" + ultima + "2");
+    var s = ws.getCell("A2");
+    s.value = "Generado el " + new Date().toLocaleString("es-EC") + " · Montos en USD · Precios de productos sin tax";
+    s.font = { italic: true, size: 10, color: { argb: X.gris } }; s.fill = relleno(X.rosaFondo); s.alignment = { indent: 1 };
+    var h = ws.getRow(3);
+    columnas.forEach(function (c, i) {
+      var cell = h.getCell(i + 1);
+      cell.value = c.t; cell.font = { bold: true, color: { argb: X.rosaOscuro } }; cell.fill = relleno(X.rosaClaro);
+      cell.alignment = { vertical: "middle", horizontal: c.m ? "right" : "left", wrapText: true }; cell.border = BORDE;
+    });
+    h.height = 32;
+    ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: columnas.length } };
+    return ws;
+  }
+
+  function estiloFilas(ws, columnas, desde, hasta) {
+    for (var r = desde; r <= hasta; r++) {
+      var fila = ws.getRow(r);
+      columnas.forEach(function (c, i) {
+        var cell = fila.getCell(i + 1);
+        cell.border = BORDE;
+        if ((r - desde) % 2 === 1) cell.fill = relleno(X.rosaFondo);
+        if (c.m) cell.numFmt = c.m;
+        cell.alignment = { vertical: "middle", horizontal: c.m ? "right" : "left" };
+      });
+    }
+  }
+
+  function filaTotales(ws, columnas, desde, hasta, etiqueta) {
+    var fila = ws.getRow(hasta + 1);
+    columnas.forEach(function (c, i) {
+      var cell = fila.getCell(i + 1), col = ws.getColumn(i + 1).letter;
+      if (i === 0) cell.value = etiqueta;
+      else if (c.sum) cell.value = { formula: "SUBTOTAL(9," + col + desde + ":" + col + hasta + ")" };
+      cell.font = { bold: true, color: { argb: X.tinta } }; cell.fill = relleno(X.amarilloFuerte); cell.border = BORDE;
+      if (c.m) { cell.numFmt = c.m; cell.alignment = { horizontal: "right" }; }
+    });
+    fila.height = 22;
+  }
+
+  function armarExcel(ExcelJS, lista) {
+    var wb = new ExcelJS.Workbook();
+    wb.creator = "Bel Personal Shopper"; wb.created = new Date();
+
+    // Hoja 1: pedidos
+    var cols = [
+      { k: "codigo", t: "Pedido", w: 11 }, { k: "fecha", t: "Fecha", w: 17, m: "dd/mm/yyyy hh:mm" },
+      { k: "cliente", t: "Cliente", w: 26 }, { k: "whatsapp", t: "WhatsApp", w: 18 }, { k: "ciudad", t: "Ciudad", w: 15 },
+      { k: "estado", t: "Estado", w: 25 }, { k: "formulario", t: "Formulario", w: 12 },
+      { k: "cant", t: "Cant. productos", w: 10, m: "0", sum: true }, { k: "prod", t: "Productos sin tax", w: 14, m: MONEDA, sum: true },
+      { k: "taxp", t: "Tax %", w: 8, m: '0.0##"%"' }, { k: "tax", t: "Tax $", w: 11, m: MONEDA, sum: true },
+      { k: "libras", t: "Libras", w: 9, m: "0.00", sum: true }, { k: "vlibra", t: "Valor libra", w: 11, m: MONEDA },
+      { k: "envio", t: "Envío", w: 11, m: MONEDA, sum: true }, { k: "com", t: "Comisión", w: 11, m: MONEDA, sum: true },
+      { k: "total", t: "Total", w: 12, m: MONEDA, sum: true }, { k: "pagado", t: "Pagado", w: 12, m: MONEDA, sum: true },
+      { k: "debe", t: "Debe", w: 12, m: MONEDA, sum: true }
+    ];
+    var ws = hojaConTitulo(wb, "Pedidos", "Bel Personal Shopper · Pedidos", cols);
+    lista.forEach(function (p) {
+      var c = p.clientes || {}, e = envioDe(p) || {};
+      ws.addRow({ codigo: p.codigo, fecha: fechaExcel(p.creado_en), cliente: c.nombre, whatsapp: c.whatsapp, ciudad: e.ciudad || "",
+        estado: p.estado, formulario: p.estado_formulario === "COMPLETO" ? "Completo" : "Pendiente",
+        cant: num(p.cantidad_productos), prod: num(p.valor_productos), taxp: num(p.tax_porcentaje), tax: num(p.tax_monto),
+        libras: num(p.libras), vlibra: num(p.valor_libra), envio: num(p.costo_envio), com: num(p.comision),
+        total: num(p.total), pagado: num(p.pagado), debe: num(p.saldo) });
+    });
+    var fin = 3 + lista.length;
+    estiloFilas(ws, cols, 4, fin);
+    for (var r = 4; r <= fin; r++) {
+      var row = ws.getRow(r), est = row.getCell(6), debe = row.getCell(18), tot = row.getCell(16);
+      est.fill = relleno(est.value === "ENTREGADO" ? X.verde : est.value === "CANCELADO" ? X.linea : X.amarillo);
+      est.font = { bold: true, size: 10, color: { argb: est.value === "ENTREGADO" ? X.verdeTinta : X.tinta } };
+      tot.font = { bold: true };
+      if (num(debe.value) > 0) debe.font = { bold: true, color: { argb: X.rosaOscuro } };
+      row.getCell(1).font = { bold: true, color: { argb: X.rosaOscuro } };
+    }
+    filaTotales(ws, cols, 4, fin, "TOTAL");
+
+    // Hoja 2: productos
+    var pcols = [
+      { k: "codigo", t: "Pedido", w: 11 }, { k: "cliente", t: "Cliente", w: 26 }, { k: "producto", t: "Producto", w: 40 },
+      { k: "enlace", t: "Enlace", w: 16 }, { k: "cant", t: "Cantidad", w: 10, m: "0", sum: true },
+      { k: "precio", t: "Precio c/u sin tax", w: 15, m: MONEDA }, { k: "sub", t: "Subtotal sin tax", w: 15, m: MONEDA, sum: true }
+    ];
+    var wp = hojaConTitulo(wb, "Productos", "Bel Personal Shopper · Productos por pedido", pcols);
+    var n = 0;
+    lista.forEach(function (p) {
+      productosDe(p).forEach(function (x) {
+        var fila = wp.addRow({ codigo: p.codigo, cliente: (p.clientes || {}).nombre, producto: x.descripcion, enlace: "",
+          cant: num(x.cantidad), precio: num(x.precio_unitario), sub: num(x.subtotal) });
+        if (x.enlace) fila.getCell(4).value = { text: "Ver producto", hyperlink: x.enlace };
+        n++;
+      });
+    });
+    if (n) {
+      estiloFilas(wp, pcols, 4, 3 + n);
+      for (var q = 4; q <= 3 + n; q++) {
+        var cl = wp.getRow(q).getCell(4);
+        if (cl.value && cl.value.hyperlink) cl.font = { underline: true, color: { argb: X.rosaOscuro } };
+        wp.getRow(q).getCell(1).font = { bold: true, color: { argb: X.rosaOscuro } };
+      }
+      filaTotales(wp, pcols, 4, 3 + n, "TOTAL");
+    } else {
+      wp.getCell("A4").value = "Estos pedidos no tienen productos anotados.";
+      wp.getCell("A4").font = { italic: true, color: { argb: X.gris } };
+    }
+
+    // Hoja 3: resumen
+    var wr = wb.addWorksheet("Resumen", { views: [{ showGridLines: false }] });
+    wr.columns = [{ width: 32 }, { width: 18 }];
+    wr.mergeCells("A1:B1");
+    wr.getCell("A1").value = "Resumen";
+    wr.getCell("A1").font = { size: 16, bold: true, color: { argb: X.blanco } };
+    wr.getCell("A1").fill = relleno(X.rosa); wr.getCell("A1").alignment = { indent: 1, vertical: "middle" };
+    wr.getRow(1).height = 30;
+    var activos = lista.filter(function (p) { return p.estado !== "CANCELADO"; });
+    var suma = function (k) { return activos.reduce(function (t, p) { return t + num(p[k]); }, 0); };
+    var filtros = [st.filtros.estado && "estado " + st.filtros.estado, st.filtros.saldo && (st.filtros.saldo === "debe" ? "con saldo" : "pagados"),
+      st.filtros.desde && "desde " + st.filtros.desde, st.filtros.hasta && "hasta " + st.filtros.hasta, st.filtros.q && "búsqueda “" + st.filtros.q + "”"].filter(Boolean);
+    [
+      ["Pedidos en este Excel", lista.length, "0"],
+      ["Pedidos cancelados (no suman)", lista.length - activos.length, "0"],
+      ["Productos sin tax", suma("valor_productos"), MONEDA],
+      ["Tax", suma("tax_monto"), MONEDA],
+      ["Envío", suma("costo_envio"), MONEDA],
+      ["Comisiones", suma("comision"), MONEDA],
+      ["Total facturado", suma("total"), MONEDA],
+      ["Pagado", suma("pagado"), MONEDA],
+      ["Por cobrar", activos.reduce(function (t, p) { return t + Math.max(num(p.saldo), 0); }, 0), MONEDA]
+    ].forEach(function (d, i) {
+      var row = wr.getRow(3 + i), a = row.getCell(1), b = row.getCell(2);
+      a.value = d[0]; b.value = d[1]; b.numFmt = d[2];
+      a.border = BORDE; b.border = BORDE; b.alignment = { horizontal: "right" };
+      var fuerte = d[0] === "Por cobrar" || d[0] === "Comisiones" || d[0] === "Total facturado";
+      a.fill = relleno(fuerte ? X.amarillo : (i % 2 ? X.rosaFondo : X.blanco)); b.fill = a.fill;
+      if (fuerte) { a.font = { bold: true }; b.font = { bold: true, color: { argb: X.rosaOscuro } }; }
+      row.height = 20;
+    });
+    wr.getCell("A13").value = "Filtros: " + (filtros.length ? filtros.join(", ") : "ninguno (todos los pedidos)");
+    wr.getCell("A13").font = { italic: true, size: 10, color: { argb: X.gris } };
+    return wb;
   }
 
   // ---------- Inicio ----------

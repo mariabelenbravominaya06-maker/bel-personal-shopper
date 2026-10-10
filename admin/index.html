@@ -59,8 +59,31 @@
   .addr{white-space:pre-line;background:var(--pink-50);border-radius:10px;padding:10px 12px;font-size:.92rem}
   dialog{border:1px solid var(--line);border-radius:18px;padding:20px;width:min(420px,calc(100% - 32px));background:var(--surface);color:var(--fg)}
   dialog::backdrop{background:rgba(42,27,34,.35)}
+  /* Pedidos nuevos */
+  .aviso-nuevos{background:var(--yellow-300);color:var(--yellow-ink);border:0}
+  tr.nuevo td:first-child{box-shadow:inset 4px 0 0 var(--pink-600)}
+  tr.nuevo{background:var(--yellow-100)}
+  .item.nuevo{border-color:var(--pink-600);box-shadow:inset 4px 0 0 var(--pink-600)}
+  .tag-nuevo{background:var(--pink-600);color:var(--on-accent);border-radius:999px;padding:1px 8px;font-size:.7rem;font-weight:700;margin-left:6px;vertical-align:middle}
+  /* Productos del pedido */
+  .nota-tax{background:var(--yellow-100);color:var(--yellow-ink);border-radius:10px;padding:8px 12px;font-size:.88rem}
+  .prods{display:flex;flex-direction:column;gap:10px}
+  .prod{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;grid-template-columns:1fr 70px 110px;gap:8px;align-items:end}
+  .prod .desc{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;align-items:flex-start;overflow-wrap:anywhere}
+  .prod .desc a{color:var(--pink-700)}
+  .prod .sub{grid-column:1/2;font-variant-numeric:tabular-nums;font-weight:600;align-self:center}
+  .prod .acc{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+  .prod input{border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px;font-size:16px;min-height:42px;width:100%}
+  .prod label{font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+  .add-prod{display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px dashed var(--line);padding-top:12px}
+  .add-prod .full{grid-column:1/-1}
+  .field input[readonly]{background:var(--pink-50);color:var(--muted)}
+  .hint{font-size:.8rem;color:var(--muted)}
+  .btn-wa{background:#1F8F4E;color:#fff;border:0}
+  @media (max-width:420px){.prod{grid-template-columns:1fr 1fr}.prod .sub{grid-column:1/-1}}
   dialog form{display:flex;flex-direction:column;gap:12px}
   @media (max-width:860px){
+    .top{position:static}
     .cards{grid-template-columns:repeat(2,1fr)}
     .filters{grid-template-columns:1fr 1fr}
     .filters .q{grid-column:1/-1}
